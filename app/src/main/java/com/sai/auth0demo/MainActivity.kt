@@ -4,8 +4,17 @@ import android.app.Dialog
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.widget.Toast
 import com.auth0.android.Auth0
+import com.auth0.android.authentication.AuthenticationAPIClient
 import com.auth0.android.authentication.AuthenticationException
+import com.auth0.android.authentication.storage.CredentialsManagerException
+import com.auth0.android.authentication.storage.SecureCredentialsManager
+import com.auth0.android.authentication.storage.SharedPreferencesStorage
+import com.auth0.android.callback.BaseCallback
 import com.auth0.android.provider.AuthCallback
 import com.auth0.android.provider.WebAuthProvider
 import com.auth0.android.result.Credentials
@@ -14,6 +23,8 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     private lateinit var account: Auth0
+    private var credManager: SecureCredentialsManager? = null
+    private var displayLogout: Boolean = false
 
     companion object {
         val TAG = MainActivity::class.java.simpleName
@@ -25,12 +36,90 @@ class MainActivity : AppCompatActivity() {
 
         setupAuth0()
 
+        setupUI()
+
         webLoginButton.setOnClickListener {
             performWebLogin()
         }
 
         nativeLoginButton.setOnClickListener {
             performNativeLogin()
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_activity_main, menu)
+        return true
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu): Boolean {
+        super.onPrepareOptionsMenu(menu)
+        menu.findItem(R.id.menu_logout)?.isVisible = displayLogout
+
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_logout -> {
+                credManager?.clearCredentials()
+                setupUI()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun setupUI() {
+        toggleProgress(true)
+        if (credManager?.hasValidCredentials()!!) {
+            credManager?.getCredentials(object: BaseCallback<Credentials, CredentialsManagerException> {
+                override fun onSuccess(payload: Credentials?) {
+                    runOnUiThread {
+                        webLoginButton.visibility = View.GONE
+                        nativeLoginButton.visibility = View.GONE
+
+                        current_auth_status_text_view.setText(R.string.logged_in)
+                        token_text_view.text = payload?.accessToken
+                        token_info_text_view.setText(R.string.token_info_title)
+
+                        allowLogout(true)
+                        toggleProgress(false)
+                    }
+                }
+
+                override fun onFailure(error: CredentialsManagerException?) {
+                    runOnUiThread {
+                        webLoginButton.visibility = View.VISIBLE
+                        nativeLoginButton.visibility = View.VISIBLE
+
+                        current_auth_status_text_view.setText(R.string.not_logged_in)
+                        token_text_view.setText(R.string.not_available)
+
+
+                        allowLogout(false)
+                        toggleProgress(false)
+
+                        Toast.makeText(applicationContext,
+                            "Failed to fetch stored credentials",
+                            Toast.LENGTH_LONG).show()
+
+                        Log.e(TAG, "Failed to fetch stored credentials", error)
+                    }
+                }
+
+            })
+        } else {
+            runOnUiThread {
+                webLoginButton.visibility = View.VISIBLE
+                nativeLoginButton.visibility = View.VISIBLE
+
+                current_auth_status_text_view.setText(R.string.not_logged_in)
+                token_text_view.setText(R.string.not_available)
+
+                allowLogout(false)
+                toggleProgress(false)
+            }
         }
     }
 
@@ -42,6 +131,7 @@ class MainActivity : AppCompatActivity() {
      * This function performs authentication using the Web Auth Provider from Auth0
      */
     private fun performWebLogin() {
+        toggleProgress(true)
         if (::account.isInitialized) {
             WebAuthProvider.login(account)
                 .withScheme("demo")
@@ -52,6 +142,14 @@ class MainActivity : AppCompatActivity() {
                             current_auth_status_text_view.setText(R.string.logged_in)
                             token_text_view.text = credentials.accessToken
 
+                            webLoginButton.visibility = View.GONE
+                            nativeLoginButton.visibility = View.GONE
+
+                            credManager?.saveCredentials(credentials)
+
+                            allowLogout(true)
+                            toggleProgress(false)
+
                             Log.d(TAG, "Scope ${credentials.scope}")
                             Log.d(TAG, "Type ${credentials.type}")
                             Log.d(TAG, "Expires in ${credentials.expiresIn}")
@@ -61,6 +159,9 @@ class MainActivity : AppCompatActivity() {
                     override fun onFailure(dialog: Dialog) {
                         runOnUiThread {
                             dialog.show()
+
+                            allowLogout(false)
+                            toggleProgress(false)
                         }
                     }
 
@@ -71,15 +172,31 @@ class MainActivity : AppCompatActivity() {
                             token_text_view.text = exception?.message
 
                             Log.e(TAG, "Login failed", exception)
+
+                            allowLogout(false)
+                            toggleProgress(false)
                         }
                     }
 
                 })
         }
+        toggleProgress(false)
     }
 
     private fun setupAuth0() {
         account = Auth0(this)
         account.isOIDCConformant = true
+
+        val apiClient = AuthenticationAPIClient(account)
+        credManager = SecureCredentialsManager(this, apiClient, SharedPreferencesStorage(this))
+    }
+
+    private fun allowLogout(allow: Boolean) {
+        displayLogout = allow
+        invalidateOptionsMenu()
+    }
+
+    private fun toggleProgress(isBusy: Boolean) {
+        progressBar.visibility = if (isBusy) View.VISIBLE else View.GONE
     }
 }

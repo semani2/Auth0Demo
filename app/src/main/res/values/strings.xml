@@ -12,4 +12,5 @@
     <string name="logged_in">Logged In</string>
     <string name="login_failed">Login failed</string>
     <string name="failure_reason">Reason for failure</string>
+    <string name="logout">Logout</string>
 </resources>
