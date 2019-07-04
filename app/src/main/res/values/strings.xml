@@ -9,4 +9,7 @@
     <string name="not_logged_in">Not Logged In</string>
     <string name="token_info_title">Token Information</string>
     <string name="not_available">Not available</string>
+    <string name="logged_in">Logged In</string>
+    <string name="login_failed">Login failed</string>
+    <string name="failure_reason">Reason for failure</string>
 </resources>
