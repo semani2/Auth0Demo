@@ -3,4 +3,10 @@
 
     <string name="com_auth0_client_id" translatable="false">ynyVUzYQQ5Lhq4kPs42gky1ESNxTOtwE</string>
     <string name="com_auth0_domain" translatable="false">dev-n03idre2.auth0.com</string>
+    <string name="login_using_web">Login Using Web</string>
+    <string name="login_native">Login Natively</string>
+    <string name="current_authentication_status_title">Current authentication status</string>
+    <string name="not_logged_in">Not Logged In</string>
+    <string name="token_info_title">Token Information</string>
+    <string name="not_available">Not available</string>
 </resources>
