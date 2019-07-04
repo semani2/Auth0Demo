@@ -42,9 +42,9 @@ class MainActivity : AppCompatActivity() {
             performWebLogin()
         }
 
-        nativeLoginButton.setOnClickListener {
+        /*nativeLoginButton.setOnClickListener {
             performNativeLogin()
-        }
+        }*/
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onSuccess(payload: Credentials?) {
                     runOnUiThread {
                         webLoginButton.visibility = View.GONE
-                        nativeLoginButton.visibility = View.GONE
+                       // nativeLoginButton.visibility = View.GONE
 
                         current_auth_status_text_view.setText(R.string.logged_in)
                         token_text_view.text = payload?.accessToken
@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onFailure(error: CredentialsManagerException?) {
                     runOnUiThread {
                         webLoginButton.visibility = View.VISIBLE
-                        nativeLoginButton.visibility = View.VISIBLE
+                        //nativeLoginButton.visibility = View.VISIBLE
 
                         current_auth_status_text_view.setText(R.string.not_logged_in)
                         token_text_view.setText(R.string.not_available)
@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             runOnUiThread {
                 webLoginButton.visibility = View.VISIBLE
-                nativeLoginButton.visibility = View.VISIBLE
+                //nativeLoginButton.visibility = View.VISIBLE
 
                 current_auth_status_text_view.setText(R.string.not_logged_in)
                 token_text_view.setText(R.string.not_available)
@@ -136,6 +136,8 @@ class MainActivity : AppCompatActivity() {
             WebAuthProvider.login(account)
                 .withScheme("demo")
                 .withAudience(String.format("https://%s/userinfo", getString(R.string.com_auth0_domain)))
+                .withScope("openid profile email read:current_user update:current_user_metadata")
+                .withParameters(mapOf(Pair("prompt", "login")))
                 .start(this, object: AuthCallback {
                     override fun onSuccess(credentials: Credentials) {
                         runOnUiThread {
@@ -143,7 +145,7 @@ class MainActivity : AppCompatActivity() {
                             token_text_view.text = credentials.accessToken
 
                             webLoginButton.visibility = View.GONE
-                            nativeLoginButton.visibility = View.GONE
+                            //nativeLoginButton.visibility = View.GONE
 
                             credManager?.saveCredentials(credentials)
 
