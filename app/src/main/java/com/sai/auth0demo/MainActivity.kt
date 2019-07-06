@@ -186,6 +186,7 @@ class MainActivity : AppCompatActivity() {
             .closable(true)
             .withScheme("demo")
             .withAudience(String.format("https://%s/userinfo", getString(R.string.com_auth0_domain)))
+            .allowSignUp(false)
             .build(this)
 
         startActivity(lock.newIntent(this))
