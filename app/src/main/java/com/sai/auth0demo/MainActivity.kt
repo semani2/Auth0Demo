@@ -15,6 +15,10 @@ import com.auth0.android.authentication.storage.CredentialsManagerException
 import com.auth0.android.authentication.storage.SecureCredentialsManager
 import com.auth0.android.authentication.storage.SharedPreferencesStorage
 import com.auth0.android.callback.BaseCallback
+import com.auth0.android.lock.AuthenticationCallback
+import com.auth0.android.lock.Lock
+import com.auth0.android.lock.LockCallback
+import com.auth0.android.lock.utils.LockException
 import com.auth0.android.provider.AuthCallback
 import com.auth0.android.provider.WebAuthProvider
 import com.auth0.android.result.Credentials
@@ -25,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var account: Auth0
     private var credManager: SecureCredentialsManager? = null
     private var displayLogout: Boolean = false
+    private lateinit var lock: Lock
 
     companion object {
         val TAG = MainActivity::class.java.simpleName
@@ -42,9 +47,17 @@ class MainActivity : AppCompatActivity() {
             performWebLogin()
         }
 
-        /*nativeLoginButton.setOnClickListener {
+        nativeLoginButton.setOnClickListener {
             performNativeLogin()
-        }*/
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        if (::lock.isInitialized) {
+            lock.onDestroy(this)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -77,7 +90,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onSuccess(payload: Credentials?) {
                     runOnUiThread {
                         webLoginButton.visibility = View.GONE
-                       // nativeLoginButton.visibility = View.GONE
+                        nativeLoginButton.visibility = View.GONE
 
                         current_auth_status_text_view.setText(R.string.logged_in)
                         token_text_view.text = payload?.accessToken
@@ -91,7 +104,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onFailure(error: CredentialsManagerException?) {
                     runOnUiThread {
                         webLoginButton.visibility = View.VISIBLE
-                        //nativeLoginButton.visibility = View.VISIBLE
+                        nativeLoginButton.visibility = View.VISIBLE
 
                         current_auth_status_text_view.setText(R.string.not_logged_in)
                         token_text_view.setText(R.string.not_available)
@@ -112,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             runOnUiThread {
                 webLoginButton.visibility = View.VISIBLE
-                //nativeLoginButton.visibility = View.VISIBLE
+                nativeLoginButton.visibility = View.VISIBLE
 
                 current_auth_status_text_view.setText(R.string.not_logged_in)
                 token_text_view.setText(R.string.not_available)
@@ -124,7 +137,58 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun performNativeLogin() {
+        account = Auth0("ynyVUzYQQ5Lhq4kPs42gky1ESNxTOtwE", "dev-n03idre2.auth0.com")
+        //Configure the account in OIDC conformant mode
+        account.isOIDCConformant = true
+        //Use the account to launch Lock
 
+        lock = Lock.newBuilder(account, object: AuthenticationCallback() {
+            override fun onAuthentication(credentials: Credentials?) {
+                runOnUiThread {
+                    current_auth_status_text_view.setText(R.string.logged_in)
+                    token_text_view.text = credentials?.accessToken
+
+                    webLoginButton.visibility = View.GONE
+                    nativeLoginButton.visibility = View.GONE
+
+                    credManager?.saveCredentials(credentials!!)
+
+                    allowLogout(true)
+                    toggleProgress(false)
+
+                    Log.d(TAG, "Scope ${credentials?.scope}")
+                    Log.d(TAG, "Type ${credentials?.type}")
+                    Log.d(TAG, "Expires in ${credentials?.expiresIn}")
+                }
+            }
+
+            override fun onCanceled() {
+                runOnUiThread {
+                    allowLogout(false)
+                    toggleProgress(false)
+                }
+            }
+
+            override fun onError(error: LockException?) {
+                runOnUiThread {
+                    current_auth_status_text_view.setText(R.string.login_failed)
+                    token_info_text_view.setText(R.string.failure_reason)
+                    token_text_view.text = error?.message
+
+                    Log.e(TAG, "Login failed", error)
+
+                    allowLogout(false)
+                    toggleProgress(false)
+                }
+            }
+
+        })
+            .closable(true)
+            .withScheme("demo")
+            .withAudience(String.format("https://%s/userinfo", getString(R.string.com_auth0_domain)))
+            .build(this)
+
+        startActivity(lock.newIntent(this))
     }
 
     /**
@@ -145,7 +209,7 @@ class MainActivity : AppCompatActivity() {
                             token_text_view.text = credentials.accessToken
 
                             webLoginButton.visibility = View.GONE
-                            //nativeLoginButton.visibility = View.GONE
+                            nativeLoginButton.visibility = View.GONE
 
                             credManager?.saveCredentials(credentials)
 
